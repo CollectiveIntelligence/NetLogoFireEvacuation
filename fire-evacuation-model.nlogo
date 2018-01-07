@@ -13,8 +13,9 @@ people-panicking-own [health]
 flocking-helpers-own [health]
 vocal-helpers-own [health shout]
 strong-helpers-own [health]
+kangaroos-own [health]
 
-globals [people-escaped people-died number-of-humans]
+globals [people-escaped people-died number-of-humans helpers-escaped others-escaped helpers-died others-died]
 
 to setup
   clear-all
@@ -26,9 +27,13 @@ to setup
   setup-vocal-helpers
   setup-strong-helpers
   set people-died 0
+  set others-died 0
+  set helpers-died 0
   setup-fire-tiles
   beep
   set people-escaped 0
+  set helpers-escaped 0
+  set others-escaped 0
   set number-of-humans number-of-people-evacuating + number-of-people-ignoring-alarm + number-of-people-panicking + number-of-flocking-helpers + number-of-vocal-helpers + number-of-strong-helpers
   reset-ticks
 end
@@ -60,7 +65,6 @@ to setup-people-evacuating
       set shape "person"
       set color black
       set health 50
-      ;set speed 1
       ]
     ]
   ]
@@ -73,7 +77,6 @@ to setup-people-ignoring-alarm
       set shape "person"
       set color violet
       set health 50
-      ;set speed 1
       ]
     ]
   ]
@@ -86,7 +89,6 @@ to setup-people-panicking
       set shape "person"
       set color blue
       set health 50
-      ;set speed 1
       ]
     ]
   ]
@@ -99,7 +101,6 @@ to setup-flocking-helpers
       set shape "person"
       set color yellow
       set health 50
-      ;set speed 1
       ]
     ]
   ]
@@ -112,7 +113,6 @@ to setup-vocal-helpers
       set shape "person"
       set color 83
       set health 50
-      ;set speed 1
       ]
     ]
   ]
@@ -125,7 +125,6 @@ to setup-strong-helpers
       set shape "person"
       set color 93
       set health 80
-      ;set ;speed 1
       ]
     ]
   ]
@@ -141,30 +140,42 @@ to setup-fire-tiles
   ask people-evacuating [
     if count fire-tiles-here > 0 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die
     ]
   ]
   ask people-ignoring-alarm [
     if count fire-tiles-here > 0 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die
     ]
   ]
   ask people-panicking [
     if count fire-tiles-here > 0 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die
     ]
   ]
   ask flocking-helpers [
     if count fire-tiles-here > 0 [
       set people-died people-died + 1
+      set helpers-died helpers-died + 1
       die
     ]
   ]
   ask vocal-helpers [
     if count fire-tiles-here > 0 [
       set people-died people-died + 1
+      set helpers-died helpers-died + 1
+      die
+    ]
+  ]
+  ask strong-helpers [
+    if count fire-tiles-here > 0 [
+      set people-died people-died + 1
+      set helpers-died helpers-died + 1
       die
     ]
   ]
@@ -177,7 +188,8 @@ to go
   move-people-panicking
   move-flocking-helpers
   move-vocal-helpers
-  ;move-strong-helpers
+  move-strong-helpers
+  move-kangaroos
   spread-fire
   spread-smoke
   update-health
@@ -190,6 +202,7 @@ to move-people-evacuating
 
     if patch-ahead 1 = nobody [
       set people-escaped people-escaped + 1
+      set others-escaped others-escaped + 1
       die
     ]
 
@@ -229,10 +242,6 @@ to move-people-evacuating
       if health >= 10 and health < 20 [
         forward 0.1
       ]
-;      if health < 10 [
-;        set speed 0.1
-;      ]
-
     ]
     [right random 360]
 
@@ -242,10 +251,9 @@ end
 to move-people-ignoring-alarm
   ask people-ignoring-alarm [
 
-;    set speed 0
-
     if patch-ahead 1 = nobody [
         set people-escaped people-escaped + 1
+      set others-escaped others-escaped + 1
         die
     ]
 
@@ -279,10 +287,6 @@ to move-people-ignoring-alarm
         if health >= 10 and health < 20 [
           forward 0.1
         ]
-
-;        if health < 10 [
-;          set speed 0
-;        ]
       ]
     ]
 
@@ -301,6 +305,7 @@ to move-people-panicking
 
     if patch-ahead 1 = nobody [
       set people-escaped people-escaped + 1
+      set others-escaped others-escaped + 1
       die
     ]
 
@@ -313,6 +318,7 @@ to move-people-panicking
       face min-one-of flocking-helpers [distance myself]
       if patch-ahead 1 = nobody [
         set people-escaped people-escaped + 1
+        set others-escaped others-escaped + 1
         die
     ]
       if ([pcolor] of patch-ahead 1 = brown) or ([pcolor] of patch-ahead 1 = grey) and (not any? fire-tiles-on patch-ahead 1)[
@@ -331,10 +337,6 @@ to move-people-panicking
         if health >= 10 and health < 20 [
           forward 0.1
         ]
-
-;        if health < 10 [
-;          set speed 0
-;        ]
       ]
     ]
   ]
@@ -345,6 +347,7 @@ to move-flocking-helpers
 
     if patch-ahead 1 = nobody [
       set people-escaped people-escaped + 1
+      set helpers-escaped helpers-escaped + 1
       die
     ]
 
@@ -384,11 +387,6 @@ to move-flocking-helpers
       if health >= 10 and health < 20 [
         forward 0.1
       ]
-
-;      if health < 10 [
-;        set speed 0
-;      ]
-
     ]
     [right random 360]
 
@@ -403,6 +401,7 @@ to move-vocal-helpers
 
     if patch-ahead 1 = nobody [
       set people-escaped people-escaped + 1
+      set helpers-escaped helpers-escaped + 1
       die
     ]
 
@@ -411,27 +410,27 @@ to move-vocal-helpers
 
 
     ifelse [pcolor] of patch-ahead 1 = brown or [pcolor] of patch-ahead 1 = grey [
-      if (distancexy -4 4) <= 2 and xcor < -4[
+      if (distancexy -4 4) <= 3 and xcor < -4[
         set color green
         set shout "exit is here"
         facexy -4 4
       ]
-      if (distancexy 4 4) <= 2 and xcor > 4[
+      if (distancexy 4 4) <= 3 and xcor > 4[
         set color green
         set shout "exit is here"
         facexy 4 4
       ]
-      if (distancexy -4 -4) <= 2 and xcor < -4[
+      if (distancexy -4 -4) <= 3 and xcor < -4[
         set color green
         set shout "exit is here"
         facexy -4 -4
       ]
-      if (distancexy 4 -4) <= 2 and xcor > 4[
+      if (distancexy 4 -4) <= 3 and xcor > 4[
         set color green
         set shout "exit is here"
         facexy 4 -4
       ]
-      if (distancexy 0 16) <= 2 [
+      if (distancexy 0 16) <= 3 [
         set color white
         set shout "exit is here"
         facexy 0 16
@@ -452,49 +451,133 @@ to move-vocal-helpers
     ]
     [right random 360]
 
-    if ( pxcor = -4 and pycor = 4) or ( pxcor = 4 and pycor = 4) or ( pxcor = -4 and pycor = -4) or ( pxcor = 4 and pycor = -4) or ( pxcor = 0 and pycor = 16) [
+    if ( pxcor >= -4 and pxcor <= 4 )[; and ( pxcor >= 4 and pycor <= -4)[; or ( pxcor = 4 and pycor = -4) or ( pxcor = 0 and pycor = 16) [
       set shout ""
-    ]
+   ]
 
 
 
   ]
 end
 
-;to move-strong-helpers
-;  ask strong-helpers [
-;  ifelse count turtles-here <= 2 [
-;    if any? people-evacuating with [distance myself <= 2 and speed < [speed] of myself] [
-;      face min-one-of people-evacuating with [distance myself <= 2 and speed < [speed] of myself] [distance myself]
-;      if ([pcolor] of patch-ahead 1 = brown) or ([pcolor] of patch-ahead 1 = grey) and (not any? fire-tiles-on patch-ahead 1) [
-;        forward speed
-;        if count people-evacuating-here with [speed < [speed] of myself] > 0 [
-;          ask people-evacuating-here [
-;              face myself
-;              set speed [speed] of strong-helpers-here
-;            ]
-;          set breed kangaroos
-;          set shape "dog"
-;          set color brown
-;          set speed speed - 0.2
-;            ;move-kangaroos [speed]
-;        ]
-;
-;    ]
-;;  or (any? people-ignoring-alarm with [distance myself <= 2 and speed < [speed] of myself])
-;;  or (any? people-panicking with [distance myself <= 2 and speed < [speed] of myself])
-;;  or (any? flocking-helpers with [distance myself <= 2 and speed < [speed] of myself])
-;;  or (any? vocal-helpers with [distance myself <= 2 and speed < [speed] of myself]))
-;;  and count turtles-here <= 2
-;
-;    ]
-;  ]
-;  []
-;  ]
-;end
+to move-strong-helpers
 
-to move-kangaroos [speed-parameter]
+  ask strong-helpers [
 
+    ifelse ((health > 30) and (any? people-evacuating in-radius 3 with [health < 30])) [
+      face one-of people-evacuating with [health < 30]
+      if ([pcolor] of patch-ahead 1 = brown) or ([pcolor] of patch-ahead 1 = grey) and (not any? fire-tiles-on patch-ahead 1) [
+        forward 1
+        if any? people-evacuating-here [
+          ask people-evacuating-here [ die ]
+          set breed kangaroos
+          set shape "dog"
+          set color brown
+          set health 80
+        ]
+      ]
+    ]
+    [
+      if patch-ahead 1 = nobody [
+      set people-escaped people-escaped + 1
+      set helpers-escaped helpers-escaped + 1
+      die
+    ]
+
+    if any? fire-tiles-on patch-ahead 1
+    [ right random 360 ]
+
+
+    ifelse [pcolor] of patch-ahead 1 = brown or [pcolor] of patch-ahead 1 = grey [
+      if ((distancexy -4 4) <= 2 and xcor <= -4) or (any? vocal-helpers with [distance myself <= 4] and label = "exit is here")[
+        set color green
+        facexy -4 4
+      ]
+      if ((distancexy 4 4) <= 2 and xcor >= 4) or (any? vocal-helpers with [distance myself <= 4] and label = "exit is here")[
+        set color green
+        facexy 4 4
+      ]
+      if ((distancexy -4 -4) <= 2 and xcor <= -4) or (any? vocal-helpers with [distance myself <= 4] and label = "exit is here")[
+        set color green
+        facexy -4 -4
+      ]
+      if ((distancexy 4 -4) <= 2 and xcor >= 4) or (any? vocal-helpers with [distance myself <= 4] and label = "exit is here")[
+        set color green
+        facexy 4 -4
+      ]
+      if ((distancexy 0 16) <= 2) or (any? vocal-helpers with [distance myself <= 4] and label = "exit is here") [
+        set color white
+        facexy 0 16
+      ]
+      if health >= 30 [
+        forward 0.7
+      ]
+
+      if health >= 20 and health < 30 [
+        forward 0.3
+      ]
+
+      if health >= 10 and health < 20 [
+        forward 0.1
+      ]
+    ]
+    [right random 360]
+    ]
+
+  ]
+end
+
+to move-kangaroos
+
+  ask kangaroos [
+
+    if patch-ahead 1 = nobody [
+      set people-escaped people-escaped + 2
+      set others-escaped others-escaped + 1
+      set helpers-escaped helpers-escaped + 1
+      die
+    ]
+
+    if any? fire-tiles-on patch-ahead 1
+    [ right random 360 ]
+
+
+    ifelse [pcolor] of patch-ahead 1 = brown or [pcolor] of patch-ahead 1 = grey [
+      if ((distancexy -4 4) <= 2 and xcor <= -4) or (any? vocal-helpers with [distance myself <= 4] and label = "exit is here")[
+        set color green
+        facexy -4 4
+      ]
+      if ((distancexy 4 4) <= 2 and xcor >= 4) or (any? vocal-helpers with [distance myself <= 4] and label = "exit is here")[
+        set color green
+        facexy 4 4
+      ]
+      if ((distancexy -4 -4) <= 2 and xcor <= -4) or (any? vocal-helpers with [distance myself <= 4] and label = "exit is here")[
+        set color green
+        facexy -4 -4
+      ]
+      if ((distancexy 4 -4) <= 2 and xcor >= 4) or (any? vocal-helpers with [distance myself <= 4] and label = "exit is here")[
+        set color green
+        facexy 4 -4
+      ]
+      if ((distancexy 0 16) <= 2) or (any? vocal-helpers with [distance myself <= 4] and label = "exit is here") [
+        set color white
+        facexy 0 16
+      ]
+      if health >= 30 [
+        forward 0.7
+      ]
+
+      if health >= 20 and health < 30 [
+        forward 0.3
+      ]
+
+      if health >= 10 and health < 20 [
+        forward 0.1
+      ]
+    ]
+    [right random 360]
+
+  ]
 end
 
 to spread-fire
@@ -547,20 +630,33 @@ to update-health
      set health health - 1
     ]
   ]
+  ask strong-helpers [
+    if pcolor = grey [
+     set health health - 1
+    ]
+  ]
+  ask kangaroos [
+    if pcolor = grey [
+     set health health - 1
+    ]
+  ]
+
 end
 
  to check-death
   ask people-evacuating [
-    ;set health 8
     if count fire-tiles-here > 0 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die
     ]
     if health <= 0 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die ]
     if sum [count fire-tiles-here] of neighbors = 8 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die
     ]
 
@@ -570,16 +666,18 @@ end
   ]
 
   ask people-ignoring-alarm [
-    ;set health 8
     if count fire-tiles-here > 0 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die
     ]
     if health <= 0 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die ]
     if sum [count fire-tiles-here] of neighbors = 8 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die
     ]
 
@@ -589,16 +687,18 @@ end
   ]
 
   ask people-panicking [
-    ;set health 8
     if count fire-tiles-here > 0 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die
     ]
     if health <= 0 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die ]
     if sum [count fire-tiles-here] of neighbors = 8 [
       set people-died people-died + 1
+      set others-died others-died + 1
       die
     ]
 
@@ -608,16 +708,18 @@ end
   ]
 
   ask flocking-helpers [
-    ;set health 8
     if count fire-tiles-here > 0 [
       set people-died people-died + 1
+      set helpers-died helpers-died + 1
       die
     ]
     if health <= 0 [
       set people-died people-died + 1
+      set helpers-died helpers-died + 1
       die ]
     if sum [count fire-tiles-here] of neighbors = 8 [
       set people-died people-died + 1
+      set helpers-died helpers-died + 1
       die
     ]
 
@@ -627,16 +729,67 @@ end
   ]
 
   ask vocal-helpers [
-    ;set health 8
     if count fire-tiles-here > 0 [
       set people-died people-died + 1
+      set helpers-died helpers-died + 1
       die
     ]
     if health <= 0 [
       set people-died people-died + 1
+      set helpers-died helpers-died + 1
       die ]
     if sum [count fire-tiles-here] of neighbors = 8 [
       set people-died people-died + 1
+      set helpers-died helpers-died + 1
+      die
+    ]
+
+  ifelse show-health?
+  [set label health]
+  [set label ""]
+
+  ifelse show-shout?
+  [set label shout]
+  [set label ""]
+  ]
+
+  ask strong-helpers [
+    if count fire-tiles-here > 0 [
+      set people-died people-died + 1
+      set helpers-died helpers-died + 1
+      die
+    ]
+    if health <= 0 [
+      set people-died people-died + 1
+      set helpers-died helpers-died + 1
+      die ]
+    if sum [count fire-tiles-here] of neighbors = 8 [
+      set people-died people-died + 1
+      set helpers-died helpers-died + 1
+      die
+    ]
+
+  ifelse show-health?
+  [set label health]
+  [set label ""]
+  ]
+
+  ask kangaroos [
+    if count fire-tiles-here > 0 [
+      set people-died people-died + 2
+      set helpers-died helpers-died + 1
+      set others-died others-died + 1
+      die
+    ]
+    if health <= 0 [
+      set people-died people-died + 2
+      set helpers-died helpers-died + 1
+      set others-died others-died + 1
+      die ]
+    if sum [count fire-tiles-here] of neighbors = 8 [
+      set people-died people-died + 2
+      set helpers-died helpers-died + 1
+      set others-died others-died + 1
       die
     ]
 
@@ -647,13 +800,13 @@ end
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-797
-11
-1381
-596
+907
+10
+1499
+603
 -1
 -1
-17.455
+17.7
 1
 10
 1
@@ -674,10 +827,10 @@ ticks
 30.0
 
 BUTTON
-18
-220
-81
-253
+390
+257
+453
+290
 NIL
 setup
 NIL
@@ -691,10 +844,10 @@ NIL
 1
 
 BUTTON
-96
-219
-159
-252
+468
+257
+531
+290
 NIL
 go
 T
@@ -707,26 +860,11 @@ NIL
 NIL
 0
 
-SLIDER
-16
-20
-231
-53
-number-of-people-evacuating
-number-of-people-evacuating
-0
-100
-0.0
-1
-1
-NIL
-HORIZONTAL
-
 SWITCH
-224
-136
-370
-169
+303
+207
+449
+240
 show-health?
 show-health?
 1
@@ -734,10 +872,10 @@ show-health?
 -1000
 
 MONITOR
-18
-268
-153
-313
+279
+328
+414
+373
 NIL
 people-escaped
 17
@@ -745,10 +883,10 @@ people-escaped
 11
 
 MONITOR
-176
+190
+328
 268
-254
-313
+373
 NIL
 people-died
 17
@@ -756,10 +894,10 @@ people-died
 11
 
 PLOT
-16
-331
-644
-570
+61
+387
+820
+603
 Totals
 time
 totals
@@ -772,104 +910,170 @@ true
 "" ""
 PENS
 "people-escaped" 1.0 0 -16777216 true "" "plot people-escaped"
-"people-died" 1.0 0 -7500403 true "" "plot people-died"
-
-SLIDER
-492
-20
-724
-53
-number-of-people-ignoring-alarm
-number-of-people-ignoring-alarm
-0
-100
-0.0
-1
-1
-NIL
-HORIZONTAL
+"others-escaped" 1.0 0 -2674135 true "" "plot others-escaped"
+"helpers-escaped" 1.0 0 -14730904 true "" "plot helpers-escaped"
 
 MONITOR
-279
-268
-397
-313
+61
+328
+179
+373
 NIL
 number-of-humans
 17
 1
 11
 
-SLIDER
-266
-21
-470
-54
-number-of-people-panicking
-number-of-people-panicking
-0
-100
-0.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-57
-80
-255
-113
-number-of-flocking-helpers
-number-of-flocking-helpers
-0
-100
-0.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-271
-81
-457
-114
-number-of-vocal-helpers
-number-of-vocal-helpers
-0
-100
-30.0
-1
-1
-NIL
-HORIZONTAL
-
 SWITCH
-391
-135
-517
-168
+470
+207
+596
+240
 show-shout?
 show-shout?
-0
+1
 1
 -1000
 
-SLIDER
-476
-79
-669
-112
-number-of-strong-helpers
-number-of-strong-helpers
+MONITOR
+511
+328
+611
+373
+NIL
+others-escaped
+17
+1
+11
+
+MONITOR
+714
+328
+818
+373
+NIL
+helpers-escaped
+17
+1
+11
+
+MONITOR
+622
+328
+703
+373
+NIL
+helpers-died
+17
+1
+11
+
+INPUTBOX
+211
+38
+366
+98
+number-of-people-evacuating
+50.0
+1
 0
-100
+Number
+
+INPUTBOX
+378
+38
+533
+98
+number-of-people-panicking
+20.0
+1
+0
+Number
+
+INPUTBOX
+543
+38
+712
+98
+number-of-people-ignoring-alarm
+10.0
+1
+0
+Number
+
+INPUTBOX
+211
+134
+366
+194
+number-of-flocking-helpers
+50.0
+1
+0
+Number
+
+INPUTBOX
+377
+134
+532
+194
+number-of-vocal-helpers
+10.0
+1
+0
+Number
+
+INPUTBOX
+542
+134
+711
+194
+number-of-strong-helpers
+30.0
+1
+0
+Number
+
+TEXTBOX
+321
+10
+581
+32
+Input number of non-interacting people
+15
 0.0
 1
+
+TEXTBOX
+372
+106
+563
+126
+Input number of helpers
+15
+0.0
 1
+
+TEXTBOX
+436
+301
+485
+320
+Results
+15
+0.0
+1
+
+MONITOR
+424
+328
+501
+373
 NIL
-HORIZONTAL
+others-died
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1245,6 +1449,146 @@ NetLogo 6.0.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="All people equal numbers" repetitions="11" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <exitCondition>not any? people-evacuating and not any? people-panicking and not any? people-ignoring-alarm and not any? flocking-helpers and not any? vocal-helpers and not any? strong-helpers</exitCondition>
+    <metric>number-of-humans</metric>
+    <metric>people-escaped</metric>
+    <metric>helpers-escaped</metric>
+    <enumeratedValueSet variable="number-of-people-evacuating">
+      <value value="50"/>
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people-panicking">
+      <value value="50"/>
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people-ignoring-alarm">
+      <value value="50"/>
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-flocking-helpers">
+      <value value="0"/>
+      <value value="50"/>
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-vocal-helpers">
+      <value value="0"/>
+      <value value="50"/>
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-strong-helpers">
+      <value value="0"/>
+      <value value="50"/>
+      <value value="100"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="more helpers" repetitions="500" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <exitCondition>not any? people-evacuating and not any? people-panicking and not any? people-ignoring-alarm and not any? flocking-helpers and not any? vocal-helpers and not any? strong-helpers</exitCondition>
+    <metric>people-escaped</metric>
+    <metric>people-died</metric>
+    <metric>others-escaped</metric>
+    <metric>others-died</metric>
+    <metric>helpers-escaped</metric>
+    <metric>helpers-died</metric>
+    <enumeratedValueSet variable="number-of-people-panicking">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people-ignoring-alarm">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-vocal-helpers">
+      <value value="60"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-strong-helpers">
+      <value value="60"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-flocking-helpers">
+      <value value="60"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people-evacuating">
+      <value value="20"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="more others" repetitions="500" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <exitCondition>not any? people-evacuating and not any? people-panicking and not any? people-ignoring-alarm and not any? flocking-helpers and not any? vocal-helpers and not any? strong-helpers</exitCondition>
+    <metric>people-escaped</metric>
+    <metric>people-died</metric>
+    <metric>others-escaped</metric>
+    <metric>others-died</metric>
+    <metric>helpers-escaped</metric>
+    <metric>helpers-died</metric>
+    <enumeratedValueSet variable="number-of-people-panicking">
+      <value value="60"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people-ignoring-alarm">
+      <value value="60"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-vocal-helpers">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-strong-helpers">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-flocking-helpers">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people-evacuating">
+      <value value="60"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="50-50" repetitions="200" sequentialRunOrder="false" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <exitCondition>not any? people-evacuating and not any? people-panicking and not any? people-ignoring-alarm and not any? flocking-helpers and not any? vocal-helpers and not any? strong-helpers</exitCondition>
+    <metric>people-escaped</metric>
+    <enumeratedValueSet variable="number-of-people-panicking">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people-ignoring-alarm">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-vocal-helpers">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-strong-helpers">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-flocking-helpers">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people-evacuating">
+      <value value="50"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="non helpers constant" repetitions="11" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <exitCondition>not any? people-evacuating and not any? people-panicking and not any? people-ignoring-alarm and not any? flocking-helpers and not any? vocal-helpers and not any? strong-helpers</exitCondition>
+    <metric>number-of-humans</metric>
+    <metric>people-escaped</metric>
+    <metric>others-escaped</metric>
+    <metric>helpers-escaped</metric>
+    <enumeratedValueSet variable="number-of-people-panicking">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people-ignoring-alarm">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people-evacuating">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="number-of-vocal-helpers" first="0" step="50" last="100"/>
+    <steppedValueSet variable="number-of-strong-helpers" first="0" step="50" last="100"/>
+    <steppedValueSet variable="number-of-flocking-helpers" first="0" step="50" last="100"/>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
